@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Gates - EAC</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #00527a;
+            --primary-dark: #003d5c;
+            --primary-light: #007ba8;
+            --accent: #00a3d4;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            
+            --dark-bg: #0f172a;
+            --dark-surface: #1a2849;
+            --dark-surface-alt: #233458;
+            --dark-border: #334155;
+            --dark-text: #f1f5f9;
+            --dark-text-muted: #cbd5e1;
+            
+            --light-bg: #f8fafc;
+            --light-surface: #ffffff;
+            --light-surface-alt: #f1f5f9;
+            --light-border: #e2e8f0;
+            --light-text: #0f172a;
+            --light-text-muted: #64748b;
+        }
+
+        html.light-mode {
+            --bg: var(--light-bg);
+            --surface: var(--light-surface);
+            --surface-alt: var(--light-surface-alt);
+            --border: var(--light-border);
+            --text: var(--light-text);
+            --text-muted: var(--light-text-muted);
+        }
+
+        html:not(.light-mode) {
+            --bg: var(--dark-bg);
+            --surface: var(--dark-surface);
+            --surface-alt: var(--dark-surface-alt);
+            --border: var(--dark-border);
+            --text: var(--dark-text);
+            --text-muted: var(--dark-text-muted);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        /* Header */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: linear-gradient(135deg, #00527a 0%, #007ba8 100%);
+            border-bottom: 2px solid #007ba8;
+            backdrop-filter: blur(12px);
+            padding: 1.5rem 2rem;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -0.5px;
+        }
+
+        .logo::before {
+            content: '⚡ ';
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .theme-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            border: 1.5px solid var(--border);
+            background: var(--surface-alt);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-btn:hover {
+            border-color: var(--primary);
+            transform: scale(1.05);
+        }
+
+        .guide-btn {
+            padding: 0.6rem 1rem;
+            border-radius: 8px;
+            border: 1.5px solid var(--primary);
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            white-space: nowrap;
+        }
+
+        .guide-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 105, 92, 0.3);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        /* Hero Section */
+        .hero {
+            margin-bottom: 4rem;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        .hero-content {
+            display: block;
+        }
+
+        .hero-text h1 {
+            font-size: clamp(2.2rem, 5vw, 3rem);
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            letter-spacing: -1.5px;
+        }
+
+        .hero-text p {
+            font-size: 1rem;
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.2rem;
+            max-width: 600px;
+        }
+
+        .stat-item {
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-item:hover {
+            border-color: var(--primary);
+            background: var(--surface);
+            transform: translateY(-4px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        /* Filters */
+        .filters-section {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2.5rem;
+            animation: fadeInUp 0.8s ease-out 0.2s both;
+        }
+
+        .filters-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary);
+        }
+
+        .filters-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .filters-row {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 2rem;
+            align-items: center;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 0.8rem;
+            white-space: nowrap;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            color: var(--text-muted);
+            min-width: fit-content;
+        }
+
+        /* Visão Consolidada */
+        #consolidatedView {
+            display: none;
+            padding: 2rem;
+        }
+
+        #consolidatedView.active {
+            display: block;
+        }
+
+        .consolidated-header {
+            text-align: center;
+            margin-bottom: 2rem;
+            border-bottom: 3px solid var(--primary);
+            padding-bottom: 1rem;
+        }
+
+        .consolidated-header h1 {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 0.3rem;
+        }
+
+        .consolidated-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .consolidated-table thead {
+            background: var(--primary);
+            color: white;
+        }
+
+        .consolidated-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .consolidated-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .consolidated-table tbody tr:hover {
+            background: var(--surface-alt);
+        }
+
+        .consolidated-project-name {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .consolidated-pacote {
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .consolidated-gate-cell {
+            text-align: center;
+        }
+
+        .consolidated-gate-pending {
+            background: #e5e7eb;
+            color: #6b7280;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        .consolidated-gate-completed {
+            background: var(--success);
+            color: white;
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: inline-block;
+            font-weight: 600;
+        }
+
+        .consolidated-gate-adjusted {
+            background: rgba(245, 158, 11, 0.15);
+            color: #92400e;
+            border: 1px solid var(--warning);
+            padding: 0.4rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            display: inline-block;
+        }
+
+        .consolidated-timestamp {
+            text-align: center;
+            margin-top: 1rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .year-buttons {
+            display: flex;
+            gap: 0.4rem;
+            flex-wrap: nowrap;
+        }
+
+        .btn-filter {
+            padding: 0.5rem 1rem;
+            border: 1.5px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .btn-filter:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-filter.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+
+        .project-select {
+            padding: 0.5rem 0.8rem;
+            border: 1.5px solid var(--border);
+            background: var(--surface-alt);
+            color: var(--text);
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            font-family: 'Outfit', sans-serif;
+            min-width: 200px;
+        }
+
+        .project-select:hover {
+            border-color: var(--primary);
+        }
+
+        .project-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+        }
+
+        .project-select option {
+            background: var(--surface);
+            color: var(--text);
+        }
+
+        /* Gates Filters */
+        .gates-filters {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: nowrap;
+        }
+
+        .gate-badge {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: 1.5px solid transparent;
+            background: var(--surface-alt);
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .gate-badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .gate-badge.gate1 .dot { background: #3b82f6; }
+        .gate-badge.gate2 .dot { background: #8b5cf6; }
+        .gate-badge.gate3 .dot { background: #ec4899; }
+        .gate-badge.gate4 .dot { background: #f59e0b; }
+
+        .gate-badge:hover {
+            transform: translateY(-2px);
+        }
+
+        .gate-badge.active {
+            border-color: currentColor;
+        }
+
+        .gate-badge.gate1.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
+        .gate-badge.gate2.active { border-color: #8b5cf6; background: rgba(139, 92, 246, 0.15); }
+        .gate-badge.gate3.active { border-color: #ec4899; background: rgba(236, 72, 153, 0.15); }
+        .gate-badge.gate4.active { border-color: #f59e0b; background: rgba(245, 158, 11, 0.15); }
+
+        /* Timeline */
+        .timeline {
+            margin-bottom: 4rem;
+        }
+
+        .timeline-month {
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.6s ease-out;
+        }
+
+        .month-header {
+            font-size: 1.3rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .gates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .gate-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+            animation: cardEntry 0.5s ease-out;
+        }
+
+        @keyframes cardEntry {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .gate-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-8px);
+            box-shadow: 0 16px 40px rgba(0, 102, 255, 0.15);
+        }
+
+        .gate-card.completed {
+            border-color: var(--success);
+        }
+
+        .gate-card.completed:hover {
+            box-shadow: 0 16px 40px rgba(16, 185, 129, 0.15);
+        }
+
+        .gate-card-header {
+            background: linear-gradient(135deg, var(--surface-alt), var(--surface));
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 1rem;
+        }
+
+        .gate-info {
+            flex: 1;
+        }
+
+        .gate-badge-large {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.75rem;
+            color: white;
+        }
+
+        .gate-badge-large.gate1 { background: #3b82f6; }
+        .gate-badge-large.gate2 { background: #8b5cf6; }
+        .gate-badge-large.gate3 { background: #ec4899; }
+        .gate-badge-large.gate4 { background: #f59e0b; }
+
+        .gate-card.completed .gate-badge-large {
+            background: var(--success);
+        }
+
+        .gate-date {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .gate-card.completed .gate-date {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
+        .gate-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            accent-color: var(--success);
+            margin: 0;
+            flex-shrink: 0;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            margin-top: 1rem;
+            padding-top: 0.8rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .checkbox-label:hover {
+            color: var(--primary);
+        }
+
+        .pacote-badge {
+            padding: 0.4rem 0.8rem;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .gate-card-body {
+            padding: 1.5rem;
+        }
+
+        .gate-project {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            margin-bottom: 0.8rem;
+            word-break: break-word;
+            overflow-wrap: break-word;
+            max-width: 100%;
+        }
+
+        .gate-card.completed .gate-project {
+            opacity: 0.6;
+        }
+
+        /* Stats Footer */
+        .stats-footer {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            margin-top: 4rem;
+        }
+
+        .footer-stat {
+            text-align: center;
+        }
+
+        .footer-stat-num {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .footer-stat-label {
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .no-events {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-muted);
+        }
+
+        .no-events-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        /* ── DATE EDIT COMPONENTS ─────────────────────────── */
+
+        .date-edit-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.35rem;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .date-edit-btn:hover {
+            border-color: var(--warning);
+            color: var(--warning);
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .date-adjusted-badge {
+            display: inline-flex;
+            align-items: center;
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+            border-radius: 3px;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 0.1rem 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            flex-shrink: 0;
+        }
+
+        .date-edit-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            width: 100%;
+        }
+
+        .date-edit-input {
+            padding: 0.4rem 0.5rem;
+            border: 1.5px solid var(--primary);
+            border-radius: 6px;
+            background: var(--surface-alt);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            width: 100%;
+            outline: none;
+        }
+
+        .date-edit-input:focus {
+            box-shadow: 0 0 0 3px rgba(0, 82, 122, 0.15);
+        }
+
+        .date-edit-actions {
+            display: flex;
+            gap: 0.35rem;
+        }
+
+        .date-edit-save {
+            flex: 1;
+            padding: 0.35rem 0.5rem;
+            border: none;
+            border-radius: 5px;
+            background: var(--success);
+            color: white;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.78rem;
+            font-family: 'Outfit', sans-serif;
+            transition: opacity 0.2s;
+        }
+
+        .date-edit-save:hover { opacity: 0.85; }
+
+        .date-edit-cancel {
+            flex: 1;
+            padding: 0.35rem 0.5rem;
+            border: none;
+            border-radius: 5px;
+            background: var(--danger);
+            color: white;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 0.78rem;
+            font-family: 'Outfit', sans-serif;
+            transition: opacity 0.2s;
+        }
+
+        .date-edit-cancel:hover { opacity: 0.85; }
+
+        /* ── / DATE EDIT COMPONENTS ───────────────────────── */
+
+        /* Animations */
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .hero-content { grid-template-columns: 1fr; }
+            .filters-grid { grid-template-columns: 1fr; }
+            .gates-grid   { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+        }
+
+        @media (max-width: 768px) {
+            .header-container { flex-direction: column; gap: 1rem; }
+            .container        { padding: 1.5rem 1rem; }
+            .hero             { margin-bottom: 2rem; }
+            .stats-grid       { grid-template-columns: 1fr; }
+            .gates-grid       { grid-template-columns: 1fr; }
+            .filters-grid     { grid-template-columns: 1fr; gap: 1rem; }
+            .gates-filters    { grid-column: 1 / -1; }
+            .stats-footer     { grid-template-columns: 1fr; }
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-top: 3rem;
+        }
+
+        .footer-credits {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-credits strong { color: var(--primary); font-weight: 600; }
+
+        .footer-badge {
+            background: var(--primary);
+            color: white;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        /* Admin Modal */
+        .admin-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-modal.active { display: flex; }
+
+        .admin-content {
+            background: var(--surface);
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 350px;
+            width: 90%;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .admin-input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-alt);
+            color: var(--text);
+            margin: 1rem 0;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .admin-btn {
+            width: 100%;
+            padding: 0.8rem;
+            border: none;
+            border-radius: 6px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .admin-badge {
+            display: inline-block;
+            background: var(--success);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        #adminStatus[style*="display: flex"] { display: flex !important; }
+    </style>
+</head>
+<body>
+    <div class="admin-modal" id="adminModal">
+        <div class="admin-content">
+            <div style="font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; color: var(--text);">🔐 Acesso Admin</div>
+            <input type="password" class="admin-input" id="adminPassword" placeholder="Chave de acesso" onkeypress="if(event.key==='Enter') adminLogin()">
+            <button class="admin-btn" onclick="adminLogin()">Entrar</button>
+            <div id="adminError" style="color: var(--danger); font-size: 0.85rem; margin-top: 0.5rem;"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <div class="logo">Painel de Gates - EAC</div>
+            <div class="header-actions">
+                <div id="adminStatus" style="display: none; margin-right: 1rem; font-size: 0.9rem; align-items: center; gap: 0.5rem;">
+                    <span class="admin-badge">✓ Admin</span>
+                    <button class="admin-btn" style="padding: 0.4rem 0.8rem; font-size: 0.75rem; background: var(--danger); width: auto;" onclick="adminLogout()">Sair</button>
+                </div>
+                <button class="guide-btn" onclick="toggleConsolidated()" title="Alterna entre Painel e Visão Consolidada">🔄 ALTERAR VISÃO</button>
+                <button class="guide-btn" onclick="openGuide()" title="Guia Rápido - Norma de Gates">📖 GUIA RÁPIDO</button>
+                <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-text">
+                <h1>Painel de Gates - EAC</h1>
+                <p>Acompanhe o progresso de 12 projetos de infraestrutura da Energisa Acre com status em tempo real.</p>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number" id="totalStat">56</div>
+                        <div class="stat-label">Total</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="completedStat">0</div>
+                        <div class="stat-label">Realizadas</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number" id="pendingStat">56</div>
+                        <div class="stat-label">Pendentes</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filters -->
+        <section class="filters-section">
+            <div class="filters-title">🔍 Filtros</div>
+            <div class="filters-grid">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label class="filter-label">Ano</label>
+                        <div class="year-buttons">
+                            <button class="btn-filter active" onclick="filterByYear('all', this)">Todos</button>
+                            <button class="btn-filter" onclick="filterByYear('2025', this)">2025</button>
+                            <button class="btn-filter" onclick="filterByYear('2026', this)">2026</button>
+                            <button class="btn-filter" onclick="filterByYear('2027', this)">2027</button>
+                            <button class="btn-filter" onclick="filterByYear('2028', this)">2028</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Projeto</label>
+                        <select class="project-select" id="projectSelect" onchange="filterByProject(this.value)">
+                            <option value="">Todos os Projetos</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label class="filter-label">Gates</label>
+                        <div class="gates-filters">
+                            <div class="gate-badge gate1 active" onclick="toggleGateFilter(1)">
+                                <div class="dot"></div>Gate 1
+                            </div>
+                            <div class="gate-badge gate2 active" onclick="toggleGateFilter(2)">
+                                <div class="dot"></div>Gate 2
+                            </div>
+                            <div class="gate-badge gate3 active" onclick="toggleGateFilter(3)">
+                                <div class="dot"></div>Gate 3
+                            </div>
+                            <div class="gate-badge gate4 active" onclick="toggleGateFilter(4)">
+                                <div class="dot"></div>Gate 4
+                            </div>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">Pacote</label>
+                        <div class="year-buttons">
+                            <button class="btn-filter active" onclick="filterByPacote('all', this)">Todos</button>
+                            <button class="btn-filter" onclick="filterByPacote('SE', this)">SE</button>
+                            <button class="btn-filter" onclick="filterByPacote('LDAT', this)">LDAT</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Timeline -->
+        <section class="timeline" id="timeline"></section>
+
+        <!-- Visão Consolidada -->
+        <section id="consolidatedView" class="main-content">
+            <div class="consolidated-header">
+                <h1>📊 Visão Consolidada de Gates</h1>
+                <p>Painel de Gates - Energisa Acre | Status em Tempo Real</p>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="consolidated-table">
+                    <thead>
+                        <tr>
+                            <th>Projeto</th>
+                            <th style="text-align: center;">Pacote</th>
+                            <th style="text-align: center;">Gate 1</th>
+                            <th style="text-align: center;">Gate 2</th>
+                            <th style="text-align: center;">Gate 3</th>
+                            <th style="text-align: center;">Gate 4</th>
+                        </tr>
+                    </thead>
+                    <tbody id="consolidatedTableBody"></tbody>
+                </table>
+            </div>
+            <div class="consolidated-timestamp">
+                Gerado em <span id="consolidatedTimestamp"></span>
+            </div>
+        </section>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-credits">
+            <span>Desenvolvido por</span>
+            <strong>Rogério Ferraz das Chagas</strong>
+            <span class="footer-badge">PMO-EAC</span>
+        </div>
+    </footer>
+
+    <script>
+        // ── SUPABASE CONFIG ────────────────────────────────────────────────────
+        const SUPABASE_URL  = 'https://rjmvfyozgeiylncjilke.supabase.co';
+        const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqbXZmeW96Z2VpeWxuY2ppbGtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzI3NzksImV4cCI6MjA5MTcwODc3OX0.uMTzRvB4lH-iJFK9PpaBEfiYJ5iPCIs5M23sjmjUCHQ';
+        const ADMIN_KEY     = 'Ferraz@89';
+
+        let supabaseClient  = null;
+        let isAdmin         = false;
+        let completedFromDB = {};   // key: `${gate}-${project}` → boolean
+        let adjustedDates   = {};   // key: `${gate}-${project}` → 'DD/MM/YYYY'
+        let currentlyEditing = null; // { project, gate } | null
+
+        try {
+            const { createClient } = supabase;
+            supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('✅ Supabase conectado');
+        } catch (e) {
+            console.error('Supabase erro:', e);
+        }
+
+        // ── KEY HELPERS ────────────────────────────────────────────────────────
+        function getEventKey(gate, project) {
+            return `${gate}-${project}`;
+        }
+
+        function getEffectiveDate(event) {
+            const key = getEventKey(event.gate, event.project);
+            return adjustedDates[key] || event.date;
+        }
+
+        // Converts 'DD/MM/YYYY' → 'YYYY-MM-DD' (for <input type="date">)
+        function toISODate(ddmmyyyy) {
+            const [d, m, y] = ddmmyyyy.split('/');
+            return `${y}-${m}-${d}`;
+        }
+
+        // Converts 'YYYY-MM-DD' → 'DD/MM/YYYY'
+        function fromISODate(yyyymmdd) {
+            const [y, m, d] = yyyymmdd.split('-');
+            return `${d}/${m}/${y}`;
+        }
+
+        // ── SUPABASE: LOAD ─────────────────────────────────────────────────────
+        async function loadFromSupabase() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('gates')
+                    .select('gate, project, completed');
+                if (error) throw error;
+                completedFromDB = {};
+                if (data) {
+                    data.forEach(item => {
+                        const key = getEventKey(item.gate, item.project);
+                        completedFromDB[key] = item.completed;
+                    });
+                }
+            } catch (e) {
+                console.error('Erro ao carregar gates:', e);
+            }
+        }
+
+        async function loadDateAdjustments() {
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('date_adjustments')
+                    .select('project, gate, adjusted_date');
+                if (error) throw error;
+                adjustedDates = {};
+                if (data) {
+                    data.forEach(item => {
+                        const key = getEventKey(item.gate, item.project);
+                        adjustedDates[key] = item.adjusted_date;
+                    });
+                }
+            } catch (e) {
+                console.error('Erro ao carregar ajustes de data:', e);
+            }
+        }
+
+        // ── SUPABASE: SAVE ─────────────────────────────────────────────────────
+        async function saveToSupabase(gate, project, completed, effectiveDate) {
+            if (!supabaseClient) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('gates')
+                    .upsert(
+                        { gate, project, completed, date: effectiveDate },
+                        { onConflict: 'project,gate' }
+                    );
+                if (error) throw error;
+                const key = getEventKey(gate, project);
+                completedFromDB[key] = completed;
+                console.log('✅ Status salvo');
+            } catch (e) {
+                console.error('Erro ao salvar status:', e);
+            }
+        }
+
+        async function saveDateAdjustment(project, gate, newDate) {
+            if (!supabaseClient) return;
+            try {
+                const { error } = await supabaseClient
+                    .from('date_adjustments')
+                    .upsert(
+                        { project, gate, adjusted_date: newDate },
+                        { onConflict: 'project,gate' }
+                    );
+                if (error) throw error;
+                const key = getEventKey(gate, project);
+                adjustedDates[key] = newDate;
+                console.log(`✅ Data ajustada: ${project} Gate ${gate} → ${newDate}`);
+                currentlyEditing = null;
+                render();
+                if (document.getElementById('consolidatedView').classList.contains('active')) {
+                    renderConsolidated();
+                }
+            } catch (e) {
+                console.error('Erro ao salvar ajuste de data:', e);
+                alert('Erro ao salvar ajuste. Verifique o console.');
+            }
+        }
+
+        // ── SUPABASE: REALTIME ─────────────────────────────────────────────────
+        function subscribeSupabase() {
+            if (!supabaseClient) return;
+
+            supabaseClient
+                .channel('gates-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'gates' }, () => {
+                    loadFromSupabase().then(() => {
+                        render();
+                        if (document.getElementById('consolidatedView').classList.contains('active')) {
+                            renderConsolidated();
+                        }
+                    });
+                })
+                .subscribe();
+
+            supabaseClient
+                .channel('date-adjustments-channel')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'date_adjustments' }, () => {
+                    loadDateAdjustments().then(() => {
+                        render();
+                        if (document.getElementById('consolidatedView').classList.contains('active')) {
+                            renderConsolidated();
+                        }
+                    });
+                })
+                .subscribe();
+        }
+
+        // ── ADMIN ──────────────────────────────────────────────────────────────
+        function showAdminModal() {
+            document.getElementById('adminModal').classList.add('active');
+        }
+
+        function adminLogin() {
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === ADMIN_KEY) {
+                isAdmin = true;
+                document.getElementById('adminModal').classList.remove('active');
+                document.getElementById('adminStatus').style.display = 'flex';
+                document.getElementById('adminPassword').value = '';
+                document.getElementById('adminError').textContent = '';
+                render();
+            } else {
+                document.getElementById('adminError').textContent = 'Chave inválida';
+            }
+        }
+
+        function adminLogout() {
+            isAdmin = false;
+            currentlyEditing = null;
+            document.getElementById('adminStatus').style.display = 'none';
+            render();
+        }
+
+        // ── DATA ───────────────────────────────────────────────────────────────
+        const monthNames = ['janeiro','fevereiro','março','abril','maio','junho',
+                            'julho','agosto','setembro','outubro','novembro','dezembro'];
+
+        const projectNames = {
+            '31096-Reforma SE Elevadora SMD-09S1'                                         : '31096 - Reforma SE Elevadora SMD',
+            '53158-Construção de Bay - Novo Alimentador 13,8kV SGS-01C3'                  : '53158 - Alimentador 13,8kV SGS',
+            '53159-Ampliação SE Sena Madureira'                                           : '53159 - Ampliação SE Sena Madureira',
+            '61652-Nova SE Porto Acre'                                                    : '61652 - Nova SE Porto Acre',
+            '61653-Adequação da SE Alto Alegre para atendimento a SE Porto Acre'          : '61653 - Adequação SE Alto Alegre',
+            '62012-Ampliação SE Plácido de Castro'                                        : '62012 - Ampliação SE Plácido de Castro',
+            '74461-Retrofit Banco de Capacitor - SE São Francisco'                        : '74461 - Retrofit SE São Francisco',
+            '78681-Reforma SE Elev. Santa Luzia'                                          : '78681 - Reforma SE Elev. Santa Luzia',
+            '83448-Construção de Bay - Novo Alimentador JUR-01I2 (JUR-01C9)'              : '83448 - Alimentador JUR-01I2',
+            '83486-Nova SE Brasiléia 138-69kV - 138-13,8kV'                              : '83486 - Nova SE Brasiléia 138-69kV',
+            '83698-Retrofit Banco de Capacitor - SE Tangará'                              : '83698 - Retrofit SE Tangará',
+            '83701-Retrofit Banco de Capacitor - SE Taquari'                              : '83701 - Retrofit SE Taquari'
+        };
+
+        function formatProjectName(project) {
+            return projectNames[project] || project;
+        }
+
+        const eventsData = [
+            { date: "27/01/2027", project: "31096-Reforma SE Elevadora SMD-09S1", gate: 1, pacote: "SE" },
+            { date: "09/02/2027", project: "31096-Reforma SE Elevadora SMD-09S1", gate: 2, pacote: "SE" },
+            { date: "26/08/2027", project: "31096-Reforma SE Elevadora SMD-09S1", gate: 3, pacote: "SE" },
+            { date: "22/12/2027", project: "31096-Reforma SE Elevadora SMD-09S1", gate: 4, pacote: "SE" },
+            { date: "27/01/2027", project: "53158-Construção de Bay - Novo Alimentador 13,8kV SGS-01C3", gate: 1, pacote: "SE" },
+            { date: "09/02/2027", project: "53158-Construção de Bay - Novo Alimentador 13,8kV SGS-01C3", gate: 2, pacote: "SE" },
+            { date: "26/08/2027", project: "53158-Construção de Bay - Novo Alimentador 13,8kV SGS-01C3", gate: 3, pacote: "SE" },
+            { date: "03/11/2027", project: "53158-Construção de Bay - Novo Alimentador 13,8kV SGS-01C3", gate: 4, pacote: "SE" },
+            { date: "17/02/2026", project: "53159-Ampliação SE Sena Madureira", gate: 1, pacote: "SE" },
+            { date: "22/05/2026", project: "53159-Ampliação SE Sena Madureira", gate: 2, pacote: "SE" },
+            { date: "27/10/2026", project: "53159-Ampliação SE Sena Madureira", gate: 3, pacote: "SE" },
+            { date: "16/04/2027", project: "53159-Ampliação SE Sena Madureira", gate: 4, pacote: "SE" },
+            { date: "14/08/2026", project: "61652-Nova SE Porto Acre", gate: 1, pacote: "SE" },
+            { date: "06/04/2027", project: "61652-Nova SE Porto Acre", gate: 2, pacote: "SE" },
+            { date: "13/09/2027", project: "61652-Nova SE Porto Acre", gate: 3, pacote: "SE" },
+            { date: "14/02/2028", project: "61652-Nova SE Porto Acre", gate: 4, pacote: "SE" },
+            { date: "14/05/2026", project: "61653-Adequação da SE Alto Alegre para atendimento a SE Porto Acre", gate: 1, pacote: "SE" },
+            { date: "11/03/2027", project: "61653-Adequação da SE Alto Alegre para atendimento a SE Porto Acre", gate: 2, pacote: "SE" },
+            { date: "20/12/2027", project: "61653-Adequação da SE Alto Alegre para atendimento a SE Porto Acre", gate: 3, pacote: "SE" },
+            { date: "27/01/2028", project: "61653-Adequação da SE Alto Alegre para atendimento a SE Porto Acre", gate: 4, pacote: "SE" },
+            { date: "27/01/2027", project: "62012-Ampliação SE Plácido de Castro", gate: 1, pacote: "SE" },
+            { date: "09/02/2027", project: "62012-Ampliação SE Plácido de Castro", gate: 2, pacote: "SE" },
+            { date: "26/08/2027", project: "62012-Ampliação SE Plácido de Castro", gate: 3, pacote: "SE" },
+            { date: "01/05/2028", project: "62012-Ampliação SE Plácido de Castro", gate: 4, pacote: "SE" },
+            { date: "04/12/2025", project: "74461-Retrofit Banco de Capacitor - SE São Francisco", gate: 1, pacote: "SE" },
+            { date: "15/12/2027", project: "74461-Retrofit Banco de Capacitor - SE São Francisco", gate: 2, pacote: "SE" },
+            { date: "21/08/2028", project: "74461-Retrofit Banco de Capacitor - SE São Francisco", gate: 3, pacote: "SE" },
+            { date: "27/10/2028", project: "74461-Retrofit Banco de Capacitor - SE São Francisco", gate: 4, pacote: "SE" },
+            { date: "30/03/2027", project: "78681-Reforma SE Elev. Santa Luzia", gate: 1, pacote: "LDAT" },
+            { date: "18/03/2027", project: "78681-Reforma SE Elev. Santa Luzia", gate: 2, pacote: "LDAT" },
+            { date: "18/11/2027", project: "78681-Reforma SE Elev. Santa Luzia", gate: 3, pacote: "LDAT" },
+            { date: "07/04/2028", project: "78681-Reforma SE Elev. Santa Luzia", gate: 4, pacote: "LDAT" },
+            { date: "21/12/2026", project: "78681-Reforma SE Elev. Santa Luzia", gate: 1, pacote: "SE" },
+            { date: "09/04/2027", project: "78681-Reforma SE Elev. Santa Luzia", gate: 2, pacote: "SE" },
+            { date: "18/11/2027", project: "78681-Reforma SE Elev. Santa Luzia", gate: 3, pacote: "SE" },
+            { date: "18/03/2028", project: "78681-Reforma SE Elev. Santa Luzia", gate: 4, pacote: "SE" },
+            { date: "15/12/2026", project: "83448-Construção de Bay - Novo Alimentador JUR-01I2 (JUR-01C9)", gate: 1, pacote: "SE" },
+            { date: "04/05/2027", project: "83448-Construção de Bay - Novo Alimentador JUR-01I2 (JUR-01C9)", gate: 2, pacote: "SE" },
+            { date: "03/09/2027", project: "83448-Construção de Bay - Novo Alimentador JUR-01I2 (JUR-01C9)", gate: 3, pacote: "SE" },
+            { date: "13/01/2028", project: "83448-Construção de Bay - Novo Alimentador JUR-01I2 (JUR-01C9)", gate: 4, pacote: "SE" },
+            { date: "03/05/2027", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 1, pacote: "LDAT" },
+            { date: "02/12/2027", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 2, pacote: "LDAT" },
+            { date: "03/07/2028", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 3, pacote: "LDAT" },
+            { date: "27/04/2028", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 4, pacote: "LDAT" },
+            { date: "03/05/2027", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 1, pacote: "SE" },
+            { date: "23/11/2027", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 2, pacote: "SE" },
+            { date: "04/05/2028", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 3, pacote: "SE" },
+            { date: "17/08/2028", project: "83486-Nova SE Brasiléia 138-69kV - 138-13,8kV", gate: 4, pacote: "SE" },
+            { date: "04/12/2025", project: "83698-Retrofit Banco de Capacitor - SE Tangará", gate: 1, pacote: "SE" },
+            { date: "15/12/2027", project: "83698-Retrofit Banco de Capacitor - SE Tangará", gate: 2, pacote: "SE" },
+            { date: "21/08/2028", project: "83698-Retrofit Banco de Capacitor - SE Tangará", gate: 3, pacote: "SE" },
+            { date: "27/10/2028", project: "83698-Retrofit Banco de Capacitor - SE Tangará", gate: 4, pacote: "SE" },
+            { date: "15/03/2028", project: "83701-Retrofit Banco de Capacitor - SE Taquari", gate: 1, pacote: "SE" },
+            { date: "18/05/2028", project: "83701-Retrofit Banco de Capacitor - SE Taquari", gate: 2, pacote: "SE" },
+            { date: "10/10/2028", project: "83701-Retrofit Banco de Capacitor - SE Taquari", gate: 3, pacote: "SE" },
+            { date: "29/12/2028", project: "83701-Retrofit Banco de Capacitor - SE Taquari", gate: 4, pacote: "SE" }
+        ];
+
+        // ── STATE ──────────────────────────────────────────────────────────────
+        let currentYearFilter   = 'all';
+        let currentProjectFilter = '';
+        let currentPacoteFilter = 'all';
+        let activeGates         = new Set([1, 2, 3, 4]);
+
+        // ── THEME ──────────────────────────────────────────────────────────────
+        function toggleTheme() {
+            const html = document.documentElement;
+            html.classList.toggle('light-mode');
+            const btn = document.getElementById('themeBtn');
+            if (btn) btn.textContent = html.classList.contains('light-mode') ? '☀️' : '🌙';
+            localStorage.setItem('theme', html.classList.contains('light-mode') ? 'light' : 'dark');
+        }
+
+        function initTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark') {
+                document.documentElement.classList.remove('light-mode');
+                const btn = document.getElementById('themeBtn');
+                if (btn) btn.textContent = '🌙';
+            } else {
+                document.documentElement.classList.add('light-mode');
+                const btn = document.getElementById('themeBtn');
+                if (btn) btn.textContent = '☀️';
+            }
+        }
+
+        // ── MISC UTILS ─────────────────────────────────────────────────────────
+        function openGuide() {
+            window.open('https://pmoeac.github.io/Norma-de-Gates/', '_blank');
+        }
+
+        function toggleConsolidated() {
+            const timeline    = document.getElementById('timeline');
+            const consolidated = document.getElementById('consolidatedView');
+            timeline.style.display = timeline.style.display === 'none' ? 'block' : 'none';
+            consolidated.classList.toggle('active');
+            if (consolidated.classList.contains('active')) renderConsolidated();
+        }
+
+        function initProjectSelect() {
+            const select   = document.getElementById('projectSelect');
+            const projects = [...new Set(eventsData.map(e => e.project))].sort();
+            projects.forEach(project => {
+                const option   = document.createElement('option');
+                option.value   = project;
+                option.textContent = formatProjectName(project);
+                select.appendChild(option);
+            });
+        }
+
+        // ── FILTERS ────────────────────────────────────────────────────────────
+        function filterByYear(year, btn) {
+            currentYearFilter = year;
+            if (btn) {
+                btn.closest('.year-buttons').querySelectorAll('.btn-filter')
+                   .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            render();
+        }
+
+        function filterByProject(project) {
+            currentProjectFilter = project;
+            render();
+        }
+
+        function filterByPacote(pacote, btn) {
+            currentPacoteFilter = pacote;
+            if (btn) {
+                btn.closest('.year-buttons').querySelectorAll('.btn-filter')
+                   .forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+            render();
+        }
+
+        function toggleGateFilter(gate) {
+            if (activeGates.has(gate)) {
+                activeGates.delete(gate);
+            } else {
+                activeGates.add(gate);
+            }
+            document.querySelectorAll(`.gate-badge.gate${gate}`)
+                    .forEach(el => el.classList.toggle('active'));
+            render();
+        }
+
+        // ── RENDER ─────────────────────────────────────────────────────────────
+        function render() {
+            const timeline = document.getElementById('timeline');
+            timeline.innerHTML = '';
+
+            const eventsByMonth = {};
+
+            eventsData.forEach(event => {
+                // Use effective date for all grouping and filtering
+                const effectiveDate = getEffectiveDate(event);
+                const [day, month, year] = effectiveDate.split('/');
+
+                if (currentYearFilter !== 'all' && year !== currentYearFilter) return;
+                if (currentProjectFilter && event.project !== currentProjectFilter) return;
+                if (!activeGates.has(event.gate)) return;
+                if (currentPacoteFilter !== 'all' && event.pacote !== currentPacoteFilter) return;
+
+                const dateObj  = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                const monthKey = dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+                if (!eventsByMonth[monthKey]) eventsByMonth[monthKey] = [];
+                eventsByMonth[monthKey].push({ event, effectiveDate });
+            });
+
+            if (Object.keys(eventsByMonth).length === 0) {
+                timeline.innerHTML = '<div class="no-events"><div class="no-events-icon">📭</div><p>Nenhum evento encontrado</p></div>';
+                updateStats();
+                return;
+            }
+
+            const sortedMonths = Object.keys(eventsByMonth).sort((a, b) => {
+                const [monthA, yearA] = a.split(' de ');
+                const [monthB, yearB] = b.split(' de ');
+                const dateA = new Date(parseInt(yearA), monthNames.indexOf(monthA), 1);
+                const dateB = new Date(parseInt(yearB), monthNames.indexOf(monthB), 1);
+                return dateA - dateB;
+            });
+
+            sortedMonths.forEach(month => {
+                const monthDiv = document.createElement('div');
+                monthDiv.className = 'timeline-month';
+
+                const header = document.createElement('div');
+                header.className = 'month-header';
+                header.textContent = month.charAt(0).toUpperCase() + month.slice(1);
+                monthDiv.appendChild(header);
+
+                const grid = document.createElement('div');
+                grid.className = 'gates-grid';
+
+                eventsByMonth[month].forEach(({ event, effectiveDate }) => {
+                    const eventKey   = getEventKey(event.gate, event.project);
+                    const isCompleted = completedFromDB[eventKey] || false;
+                    const isAdjusted  = adjustedDates[eventKey] !== undefined;
+                    const isEditing   = currentlyEditing &&
+                                        currentlyEditing.project === event.project &&
+                                        currentlyEditing.gate    === event.gate;
+
+                    // ── Card ──
+                    const card = document.createElement('div');
+                    card.className = `gate-card ${isCompleted ? 'completed' : ''}`;
+
+                    // ── Card Header ──
+                    const cardHeader = document.createElement('div');
+                    cardHeader.className = 'gate-card-header';
+
+                    const gateInfo = document.createElement('div');
+                    gateInfo.className = 'gate-info';
+
+                    const badge = document.createElement('div');
+                    badge.className = `gate-badge-large gate${event.gate}`;
+                    badge.textContent = `GATE ${event.gate}`;
+                    gateInfo.appendChild(badge);
+
+                    // Date area — normal display or edit mode
+                    const dateEl = document.createElement('div');
+                    dateEl.className = 'gate-date';
+
+                    if (isEditing) {
+                        // ── Edit Mode ──
+                        const wrapper = document.createElement('div');
+                        wrapper.className = 'date-edit-wrapper';
+
+                        const input = document.createElement('input');
+                        input.type  = 'date';
+                        input.value = toISODate(effectiveDate);
+                        input.className = 'date-edit-input';
+
+                        const actionsDiv = document.createElement('div');
+                        actionsDiv.className = 'date-edit-actions';
+
+                        const saveBtn = document.createElement('button');
+                        saveBtn.textContent = '✓ Salvar';
+                        saveBtn.className = 'date-edit-save';
+                        saveBtn.onclick = async (e) => {
+                            e.stopPropagation();
+                            if (!input.value) return;
+                            await saveDateAdjustment(event.project, event.gate, fromISODate(input.value));
+                        };
+
+                        const cancelBtn = document.createElement('button');
+                        cancelBtn.textContent = '✗ Cancelar';
+                        cancelBtn.className = 'date-edit-cancel';
+                        cancelBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            currentlyEditing = null;
+                            render();
+                        };
+
+                        actionsDiv.appendChild(saveBtn);
+                        actionsDiv.appendChild(cancelBtn);
+                        wrapper.appendChild(input);
+                        wrapper.appendChild(actionsDiv);
+                        dateEl.appendChild(wrapper);
+
+                    } else {
+                        // ── Normal Display ──
+                        const dateText = document.createTextNode(effectiveDate);
+                        dateEl.appendChild(dateText);
+
+                        if (isAdjusted) {
+                            const adjBadge = document.createElement('span');
+                            adjBadge.className = 'date-adjusted-badge';
+                            adjBadge.textContent = 'ajustado';
+                            adjBadge.title = `Data original: ${event.date}`;
+                            dateEl.appendChild(adjBadge);
+                        }
+
+                        if (isAdmin) {
+                            const editBtn = document.createElement('button');
+                            editBtn.className = 'date-edit-btn';
+                            editBtn.textContent = '✏️';
+                            editBtn.title = 'Ajustar data desta reunião';
+                            editBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                currentlyEditing = { project: event.project, gate: event.gate };
+                                render();
+                            };
+                            dateEl.appendChild(editBtn);
+                        }
+                    }
+
+                    gateInfo.appendChild(dateEl);
+
+                    // Pacote badge
+                    const pacoteBadge = document.createElement('div');
+                    pacoteBadge.className = 'pacote-badge';
+                    pacoteBadge.textContent = event.pacote || 'SE';
+
+                    cardHeader.appendChild(gateInfo);
+                    cardHeader.appendChild(pacoteBadge);
+                    card.appendChild(cardHeader);
+
+                    // ── Card Body ──
+                    const body = document.createElement('div');
+                    body.className = 'gate-card-body';
+
+                    const project = document.createElement('div');
+                    project.className = 'gate-project';
+                    project.textContent = formatProjectName(event.project);
+                    project.title = event.project;
+                    body.appendChild(project);
+
+                    // Checkbox
+                    const checkbox = document.createElement('input');
+                    checkbox.type  = 'checkbox';
+                    checkbox.className = 'gate-checkbox';
+                    checkbox.id    = 'cb-' + eventKey.replace(/[^a-zA-Z0-9]/g, '-');
+                    checkbox.checked = isCompleted;
+                    checkbox.onchange = () => {
+                        if (!isAdmin) {
+                            checkbox.checked = isCompleted;
+                            showAdminModal();
+                        } else {
+                            const newCompleted = checkbox.checked;
+                            saveToSupabase(event.gate, event.project, newCompleted, effectiveDate);
+                            card.classList.toggle('completed', newCompleted);
+                        }
+                    };
+
+                    const checkboxLabel = document.createElement('label');
+                    checkboxLabel.className = 'checkbox-label';
+                    checkboxLabel.htmlFor   = checkbox.id;
+                    checkboxLabel.appendChild(checkbox);
+                    checkboxLabel.appendChild(document.createTextNode('Realizado'));
+                    body.appendChild(checkboxLabel);
+
+                    card.appendChild(body);
+                    grid.appendChild(card);
+                });
+
+                monthDiv.appendChild(grid);
+                timeline.appendChild(monthDiv);
+            });
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const total     = document.querySelectorAll('.gate-card').length;
+            const completed = document.querySelectorAll('.gate-card.completed').length;
+            const pending   = total - completed;
+
+            const totalEl     = document.getElementById('totalStat');
+            const completedEl = document.getElementById('completedStat');
+            const pendingEl   = document.getElementById('pendingStat');
+
+            if (totalEl)     totalEl.textContent     = total;
+            if (completedEl) completedEl.textContent = completed;
+            if (pendingEl)   pendingEl.textContent   = pending;
+        }
+
+        // ── VISÃO CONSOLIDADA ──────────────────────────────────────────────────
+        function renderConsolidated() {
+            const projects = [...new Set(eventsData.map(e => e.project))].sort();
+            let tableHTML  = '';
+
+            projects.forEach(project => {
+                const projectGates = eventsData.filter(e => e.project === project);
+                const projectName  = projectNames[project] || project;
+                const pacotes      = new Map();
+
+                projectGates.forEach(event => {
+                    const pacote = event.pacote || 'SE';
+                    if (!pacotes.has(pacote)) pacotes.set(pacote, []);
+                    pacotes.get(pacote).push(event);
+                });
+
+                ['SE', 'LDAT'].forEach(pacote => {
+                    if (!pacotes.has(pacote)) return;
+                    const gates = pacotes.get(pacote);
+                    let gatesHTML = '';
+
+                    for (let gateNum = 1; gateNum <= 4; gateNum++) {
+                        const event = gates.find(e => e.gate === gateNum);
+                        if (!event) {
+                            gatesHTML += '<td class="consolidated-gate-cell">—</td>';
+                            continue;
+                        }
+
+                        const key           = getEventKey(event.gate, event.project);
+                        const isCompleted   = completedFromDB[key];
+                        const isAdjusted    = adjustedDates[key] !== undefined;
+                        const displayDate   = getEffectiveDate(event);
+
+                        if (isCompleted) {
+                            gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-completed">✓ ${displayDate}</span></td>`;
+                        } else {
+                            gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-pending">${displayDate}</span></td>`;
+                        }
+                    }
+
+                    const pacoteDisplay = pacote === 'SE' ? '🔷 SE' : '🔶 LDAT';
+                    tableHTML += `
+                        <tr>
+                            <td class="consolidated-project-name">${projectName}</td>
+                            <td class="consolidated-pacote">${pacoteDisplay}</td>
+                            ${gatesHTML}
+                        </tr>`;
+                });
+            });
+
+            document.getElementById('consolidatedTableBody').innerHTML = tableHTML;
+            document.getElementById('consolidatedTimestamp').textContent = new Date().toLocaleString('pt-BR');
+        }
+
+        // ── INIT ───────────────────────────────────────────────────────────────
+        initTheme();
+        initProjectSelect();
+        Promise.all([loadFromSupabase(), loadDateAdjustments()]).then(() => {
+            subscribeSupabase();
+            render();
+        });
+    </script>
+</body>
+</html>
