@@ -1337,7 +1337,7 @@
         // ── SUPABASE CONFIG ────────────────────────────────────────────────────
         const SUPABASE_URL  = 'https://rjmvfyozgeiylncjilke.supabase.co';
         const SUPABASE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJqbXZmeW96Z2VpeWxuY2ppbGtlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxMzI3NzksImV4cCI6MjA5MTcwODc3OX0.uMTzRvB4lH-iJFK9PpaBEfiYJ5iPCIs5M23sjmjUCHQ';
-        const ADMIN_KEY     = 'Ferraz@89';
+        const ADMIN_EMAIL   = 'rogerio.chagas@energisa.com.br';
 
         let supabaseClient  = null;
         let isAdmin         = false;
@@ -1491,9 +1491,13 @@
             document.getElementById('adminModal').classList.add('active');
         }
 
-        function adminLogin() {
+        async function adminLogin() {
             const pass = document.getElementById('adminPassword').value;
-            if (pass === ADMIN_KEY) {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({
+                email: ADMIN_EMAIL,
+                password: pass
+            });
+            if (!error && data.session) {
                 isAdmin = true;
                 document.getElementById('adminModal').classList.remove('active');
                 document.getElementById('adminStatus').style.display = 'flex';
@@ -1505,11 +1509,20 @@
             }
         }
 
-        function adminLogout() {
+        async function adminLogout() {
+            await supabaseClient.auth.signOut();
             isAdmin = false;
             currentlyEditing = null;
             document.getElementById('adminStatus').style.display = 'none';
             render();
+        }
+
+        async function restoreAdminSession() {
+            const { data } = await supabaseClient.auth.getSession();
+            if (data.session) {
+                isAdmin = true;
+                document.getElementById('adminStatus').style.display = 'flex';
+            }
         }
 
         // ── DATA ───────────────────────────────────────────────────────────────
@@ -1965,9 +1978,11 @@
         // ── INIT ───────────────────────────────────────────────────────────────
         initTheme();
         initProjectSelect();
-        Promise.all([loadFromSupabase(), loadDateAdjustments()]).then(() => {
-            subscribeSupabase();
-            render();
+        restoreAdminSession().then(() => {
+            Promise.all([loadFromSupabase(), loadDateAdjustments()]).then(() => {
+                subscribeSupabase();
+                render();
+            });
         });
     </script>
 </body>
