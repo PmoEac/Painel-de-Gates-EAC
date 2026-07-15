@@ -1133,44 +1133,7 @@
                                 <th>2º Suplente</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            <tr>
-                                <td><span class="area-badge">ASPO</span></td>
-                                <td><span class="rep-principal">Cristiano Saraiva</span></td>
-                                <td><span class="rep-suplente">Sandy Khoury</span></td>
-                                <td><span class="rep-suplente">Lidia Ariela de Melo</span></td>
-                            </tr>
-                            <tr>
-                                <td><span class="area-badge">DCMD-AT</span></td>
-                                <td><span class="rep-principal">Igor Vasconcellos</span></td>
-                                <td><span class="rep-suplente">Leandro Garcia</span></td>
-                                <td><span class="rep-suplente">Paulo Pajanotti</span></td>
-                            </tr>
-                            <tr>
-                                <td><span class="area-badge">DCMD-MT</span></td>
-                                <td><span class="rep-principal">André Amarante</span></td>
-                                <td><span class="rep-suplente">John Rellysson</span></td>
-                                <td><span class="rep-suplente">Driely Leonidio</span></td>
-                            </tr>
-                            <tr>
-                                <td><span class="area-badge">DEOP</span></td>
-                                <td><span class="rep-principal">Loureman Carlos</span></td>
-                                <td><span class="rep-suplente">Jhony Poças</span></td>
-                                <td><span class="rep-suplente">Edson Sartori</span></td>
-                            </tr>
-                            <tr>
-                                <td><span class="area-badge">DESC</span></td>
-                                <td><span class="rep-principal">Andre D. Klein</span></td>
-                                <td><span class="rep-suplente">Tony Andrew</span></td>
-                                <td><span class="rep-suplente">Sidney Costa</span></td>
-                            </tr>
-                            <tr>
-                                <td><span class="area-badge">GAT</span></td>
-                                <td><span class="rep-principal">Lucas Sales Nunes</span></td>
-                                <td><span class="rep-suplente">Renan Saito</span></td>
-                                <td><span class="rep-vazio">—</span></td>
-                            </tr>
-                        </tbody>
+                        <tbody id="comiteTableBody"></tbody>
                     </table>
                 </div>
                 <div class="comite-notes">
@@ -1354,12 +1317,12 @@
         }
 
         // ── KEY HELPERS ────────────────────────────────────────────────────────
-        function getEventKey(gate, project) {
-            return `${gate}-${project}`;
+        function getEventKey(gate, project, pacote) {
+            return `${gate}-${project}-${pacote}`;
         }
 
         function getEffectiveDate(event) {
-            const key = getEventKey(event.gate, event.project);
+            const key = getEventKey(event.gate, event.project, event.pacote);
             return adjustedDates[key] || event.date;
         }
 
@@ -1381,12 +1344,12 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('gates')
-                    .select('gate, project, completed');
+                    .select('gate, project, pacote, completed');
                 if (error) throw error;
                 completedFromDB = {};
                 if (data) {
                     data.forEach(item => {
-                        const key = getEventKey(item.gate, item.project);
+                        const key = getEventKey(item.gate, item.project, item.pacote);
                         completedFromDB[key] = item.completed;
                     });
                 }
@@ -1400,12 +1363,12 @@
             try {
                 const { data, error } = await supabaseClient
                     .from('date_adjustments')
-                    .select('project, gate, adjusted_date');
+                    .select('project, gate, pacote, adjusted_date');
                 if (error) throw error;
                 adjustedDates = {};
                 if (data) {
                     data.forEach(item => {
-                        const key = getEventKey(item.gate, item.project);
+                        const key = getEventKey(item.gate, item.project, item.pacote);
                         adjustedDates[key] = item.adjusted_date;
                     });
                 }
@@ -1415,17 +1378,17 @@
         }
 
         // ── SUPABASE: SAVE ─────────────────────────────────────────────────────
-        async function saveToSupabase(gate, project, completed, effectiveDate) {
+        async function saveToSupabase(gate, project, pacote, completed, effectiveDate) {
             if (!supabaseClient) return;
             try {
                 const { error } = await supabaseClient
                     .from('gates')
                     .upsert(
-                        { gate, project, completed, date: effectiveDate },
-                        { onConflict: 'project,gate' }
+                        { gate, project, pacote, completed, date: effectiveDate },
+                        { onConflict: 'project,gate,pacote' }
                     );
                 if (error) throw error;
-                const key = getEventKey(gate, project);
+                const key = getEventKey(gate, project, pacote);
                 completedFromDB[key] = completed;
                 console.log('✅ Status salvo');
             } catch (e) {
@@ -1433,19 +1396,19 @@
             }
         }
 
-        async function saveDateAdjustment(project, gate, newDate) {
+        async function saveDateAdjustment(project, gate, pacote, newDate) {
             if (!supabaseClient) return;
             try {
                 const { error } = await supabaseClient
                     .from('date_adjustments')
                     .upsert(
-                        { project, gate, adjusted_date: newDate },
-                        { onConflict: 'project,gate' }
+                        { project, gate, pacote, adjusted_date: newDate },
+                        { onConflict: 'project,gate,pacote' }
                     );
                 if (error) throw error;
-                const key = getEventKey(gate, project);
+                const key = getEventKey(gate, project, pacote);
                 adjustedDates[key] = newDate;
-                console.log(`✅ Data ajustada: ${project} Gate ${gate} → ${newDate}`);
+                console.log(`✅ Data ajustada: ${project} Gate ${gate} (${pacote}) → ${newDate}`);
                 currentlyEditing = null;
                 render();
                 if (document.getElementById('consolidatedView').classList.contains('active')) {
@@ -1635,6 +1598,28 @@
             }
         }
 
+        // ── COMITÊ DE GATES — DADOS ───────────────────────────────────────────
+        // Fonte: Comite_Membros.xlsx. Ao atualizar a planilha, regenerar este array.
+        const comiteMembers = [
+            { area: 'ASPO',    representante: 'Cristiano Saraiva',  suplente1: 'Sandy Khoury',      suplente2: 'Lidia Ariela de Melo' },
+            { area: 'DCMD-AT', representante: 'Igor Vasconcellos',  suplente1: 'Paulo Pajanotti',    suplente2: '' },
+            { area: 'DCMD-MT', representante: 'André Amarante',     suplente1: 'John Rellysson',     suplente2: 'Driely Leonidio' },
+            { area: 'DEOP',    representante: 'Loureman Carlos',    suplente1: 'Jhony Poças',        suplente2: 'Edson Sartori' },
+            { area: 'DESC',    representante: 'Andre D. Klein',     suplente1: 'Tony Andrew',        suplente2: 'Sidney Costa' },
+            { area: 'GAT',     representante: 'Lucas Sales Nunes',  suplente1: 'Renan Saito',        suplente2: '' }
+        ];
+
+        function renderComite() {
+            const tbody = document.getElementById('comiteTableBody');
+            tbody.innerHTML = comiteMembers.map(m => `
+                <tr>
+                    <td><span class="area-badge">${m.area}</span></td>
+                    <td><span class="rep-principal">${m.representante}</span></td>
+                    <td>${m.suplente1 ? `<span class="rep-suplente">${m.suplente1}</span>` : '<span class="rep-vazio">—</span>'}</td>
+                    <td>${m.suplente2 ? `<span class="rep-suplente">${m.suplente2}</span>` : '<span class="rep-vazio">—</span>'}</td>
+                </tr>`).join('');
+        }
+
         // ── MISC UTILS ─────────────────────────────────────────────────────────
         function openComite() {
             document.getElementById('comiteModal').classList.add('active');
@@ -1760,12 +1745,13 @@
                 grid.className = 'gates-grid';
 
                 eventsByMonth[month].forEach(({ event, effectiveDate }) => {
-                    const eventKey   = getEventKey(event.gate, event.project);
+                    const eventKey   = getEventKey(event.gate, event.project, event.pacote);
                     const isCompleted = completedFromDB[eventKey] || false;
                     const isAdjusted  = adjustedDates[eventKey] !== undefined;
                     const isEditing   = currentlyEditing &&
                                         currentlyEditing.project === event.project &&
-                                        currentlyEditing.gate    === event.gate;
+                                        currentlyEditing.gate    === event.gate &&
+                                        currentlyEditing.pacote  === event.pacote;
 
                     // ── Card ──
                     const card = document.createElement('div');
@@ -1806,7 +1792,7 @@
                         saveBtn.onclick = async (e) => {
                             e.stopPropagation();
                             if (!input.value) return;
-                            await saveDateAdjustment(event.project, event.gate, fromISODate(input.value));
+                            await saveDateAdjustment(event.project, event.gate, event.pacote, fromISODate(input.value));
                         };
 
                         const cancelBtn = document.createElement('button');
@@ -1844,7 +1830,7 @@
                             editBtn.title = 'Ajustar data desta reunião';
                             editBtn.onclick = (e) => {
                                 e.stopPropagation();
-                                currentlyEditing = { project: event.project, gate: event.gate };
+                                currentlyEditing = { project: event.project, gate: event.gate, pacote: event.pacote };
                                 render();
                             };
                             dateEl.appendChild(editBtn);
@@ -1884,7 +1870,7 @@
                             showAdminModal();
                         } else {
                             const newCompleted = checkbox.checked;
-                            saveToSupabase(event.gate, event.project, newCompleted, effectiveDate);
+                            saveToSupabase(event.gate, event.project, event.pacote, newCompleted, effectiveDate);
                             card.classList.toggle('completed', newCompleted);
                         }
                     };
@@ -1949,7 +1935,7 @@
                             continue;
                         }
 
-                        const key           = getEventKey(event.gate, event.project);
+                        const key           = getEventKey(event.gate, event.project, event.pacote);
                         const isCompleted   = completedFromDB[key];
                         const isAdjusted    = adjustedDates[key] !== undefined;
                         const displayDate   = getEffectiveDate(event);
@@ -1978,6 +1964,7 @@
         // ── INIT ───────────────────────────────────────────────────────────────
         initTheme();
         initProjectSelect();
+        renderComite();
         restoreAdminSession().then(() => {
             Promise.all([loadFromSupabase(), loadDateAdjustments()]).then(() => {
                 subscribeSupabase();
