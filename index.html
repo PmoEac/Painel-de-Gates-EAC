@@ -1264,6 +1264,11 @@
         /* ── / COMITÊ MODAL ───────────────────────────────── */
 
         /* ── IMPRESSÃO ─────────────────────────────────────── */
+        @page {
+            size: A4 landscape;
+            margin: 12mm;
+        }
+
         @media print {
             html {
                 --bg: var(--light-bg);
@@ -1277,6 +1282,7 @@
             body { background: white; }
 
             .header,
+            .hero,
             .upcoming-section,
             .filters-section,
             .footer,
@@ -1285,18 +1291,60 @@
                 display: none !important;
             }
 
+            .container {
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+
             #consolidatedView {
                 display: block !important;
                 padding: 0;
             }
 
+            .consolidated-header {
+                margin-bottom: 0.5rem;
+                padding-bottom: 0.4rem;
+            }
+
+            .consolidated-header h1 {
+                font-size: 1.2rem;
+                margin-bottom: 0.1rem;
+            }
+
+            .consolidated-header p {
+                font-size: 0.75rem;
+            }
+
             .consolidated-table {
                 box-shadow: none;
+                width: 100%;
+            }
+
+            .consolidated-table th {
+                padding: 0.35rem 0.5rem;
+                font-size: 0.72rem;
+            }
+
+            .consolidated-table td {
+                padding: 0.28rem 0.5rem;
+                font-size: 0.72rem;
             }
 
             .consolidated-table th,
             .consolidated-table td {
                 border: 1px solid #cbd5e1;
+            }
+
+            .consolidated-gate-completed,
+            .consolidated-gate-pending {
+                padding: 0.15rem 0.35rem;
+                font-size: 0.68rem;
+            }
+
+            .consolidated-timestamp {
+                margin-top: 0.3rem;
+                font-size: 0.7rem;
             }
         }
         /* ── / IMPRESSÃO ───────────────────────────────────── */
@@ -2003,6 +2051,15 @@
         }
 
         // ── FILTERS ────────────────────────────────────────────────────────────
+        // Re-renderiza a Timeline e, se a Visão Consolidada estiver ativa, ela também —
+        // sem isso, mudar um filtro com a Consolidada aberta não atualiza o que está na tela.
+        function refreshActiveView() {
+            render();
+            if (document.getElementById('consolidatedView').classList.contains('active')) {
+                renderConsolidated();
+            }
+        }
+
         function filterByYear(year, btn) {
             currentYearFilter = year;
             if (btn) {
@@ -2011,13 +2068,13 @@
                 btn.classList.add('active');
             }
             saveFilterState();
-            render();
+            refreshActiveView();
         }
 
         function filterByProject(project) {
             currentProjectFilter = project;
             saveFilterState();
-            render();
+            refreshActiveView();
         }
 
         function filterByPacote(pacote, btn) {
@@ -2028,7 +2085,7 @@
                 btn.classList.add('active');
             }
             saveFilterState();
-            render();
+            refreshActiveView();
         }
 
         function toggleGateFilter(gate) {
@@ -2040,7 +2097,7 @@
             document.querySelectorAll(`.gate-badge.gate${gate}`)
                     .forEach(el => el.classList.toggle('active'));
             saveFilterState();
-            render();
+            refreshActiveView();
         }
 
         // ── PERSISTÊNCIA DE FILTROS ────────────────────────────────────────────
@@ -2344,7 +2401,8 @@
                     if (!pacotes.has(pacote)) return;
                     if (currentPacoteFilter !== 'all' && pacote !== currentPacoteFilter) return;
                     const gates = pacotes.get(pacote);
-                    let gatesHTML = '';
+                    let gatesHTML   = '';
+                    let hasVisible  = false;
 
                     for (let gateNum = 1; gateNum <= 4; gateNum++) {
                         const event = gates.find(e => e.gate === gateNum);
@@ -2363,10 +2421,15 @@
                             gatesHTML += '<td class="consolidated-gate-cell">—</td>';
                         } else if (isCompleted) {
                             gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-completed">✓ ${displayDate}</span></td>`;
+                            hasVisible = true;
                         } else {
                             gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-pending">${displayDate}</span></td>`;
+                            hasVisible = true;
                         }
                     }
+
+                    // Sem nenhum gate visível com os filtros atuais: não ocupa linha na tabela
+                    if (!hasVisible) return;
 
                     const pacoteDisplay = pacote === 'SE' ? '🔷 SE' : '🔶 LDAT';
                     tableHTML += `
@@ -2378,7 +2441,8 @@
                 });
             });
 
-            document.getElementById('consolidatedTableBody').innerHTML = tableHTML;
+            document.getElementById('consolidatedTableBody').innerHTML = tableHTML ||
+                '<tr><td colspan="6" style="text-align:center; padding:2rem; color:var(--text-muted);">Nenhum gate encontrado com os filtros atuais</td></tr>';
             document.getElementById('consolidatedTimestamp').textContent = new Date().toLocaleString('pt-BR');
         }
 
