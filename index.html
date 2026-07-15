@@ -977,6 +977,31 @@
             letter-spacing: 0.3px;
         }
 
+        /* Toast */
+        .toast-notification {
+            position: fixed;
+            bottom: 1.5rem;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: var(--success);
+            color: white;
+            padding: 0.8rem 1.4rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            z-index: 2000;
+            transition: transform 0.3s ease;
+        }
+
+        .toast-notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast-notification.toast-error {
+            background: var(--danger);
+        }
+
         /* Admin Modal */
         .admin-modal {
             display: none;
@@ -1237,6 +1262,44 @@
             .comite-table td, .comite-table th { padding: 0.7rem 0.75rem; }
         }
         /* ── / COMITÊ MODAL ───────────────────────────────── */
+
+        /* ── IMPRESSÃO ─────────────────────────────────────── */
+        @media print {
+            html {
+                --bg: var(--light-bg);
+                --surface: var(--light-surface);
+                --surface-alt: var(--light-surface-alt);
+                --border: var(--light-border);
+                --text: var(--light-text);
+                --text-muted: var(--light-text-muted);
+            }
+
+            body { background: white; }
+
+            .header,
+            .upcoming-section,
+            .filters-section,
+            .footer,
+            #timeline,
+            .toast-notification {
+                display: none !important;
+            }
+
+            #consolidatedView {
+                display: block !important;
+                padding: 0;
+            }
+
+            .consolidated-table {
+                box-shadow: none;
+            }
+
+            .consolidated-table th,
+            .consolidated-table td {
+                border: 1px solid #cbd5e1;
+            }
+        }
+        /* ── / IMPRESSÃO ───────────────────────────────────── */
     </style>
 </head>
 <body>
@@ -1325,6 +1388,7 @@
                 <button class="guide-btn" onclick="toggleConsolidated()" title="Alterna entre Painel e Visão Consolidada">🔄 ALTERAR VISÃO</button>
                 <button class="guide-btn" onclick="openComite()" title="Membros do Comitê de Gates">🏛️ MEMBROS DO COMITÊ</button>
                 <button class="guide-btn" onclick="openGuide()" title="Guia Rápido - Norma de Gates">📖 GUIA RÁPIDO</button>
+                <button class="guide-btn" onclick="printConsolidated()" title="Imprimir Visão Consolidada">🖨️ IMPRIMIR</button>
                 <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
             </div>
         </div>
@@ -1472,6 +1536,21 @@
             console.error('Supabase erro:', e);
         }
 
+        // ── TOAST ──────────────────────────────────────────────────────────────
+        let toastTimeout = null;
+        function showToast(message, isError = false) {
+            let toast = document.getElementById('toastNotification');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toastNotification';
+                document.body.appendChild(toast);
+            }
+            toast.textContent = message;
+            toast.className = 'toast-notification show' + (isError ? ' toast-error' : '');
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
         // ── KEY HELPERS ────────────────────────────────────────────────────────
         function getEventKey(gate, project, pacote) {
             return `${gate}-${project}-${pacote}`;
@@ -1547,8 +1626,10 @@
                 const key = getEventKey(gate, project, pacote);
                 completedFromDB[key] = completed;
                 console.log('✅ Status salvo');
+                showToast(completed ? '✓ Gate marcado como realizado' : '✓ Gate desmarcado');
             } catch (e) {
                 console.error('Erro ao salvar status:', e);
+                showToast('Erro ao salvar. Tente novamente.', true);
             }
         }
 
@@ -1574,6 +1655,7 @@
 
                 adjustedDates[key] = newDate;
                 console.log(`✅ Data ajustada: ${project} Gate ${gate} (${pacote}) → ${newDate}`);
+                showToast('✓ Ajuste de data salvo');
                 currentlyEditing = null;
                 render();
                 if (document.getElementById('consolidatedView').classList.contains('active')) {
@@ -1581,7 +1663,7 @@
                 }
             } catch (e) {
                 console.error('Erro ao salvar ajuste de data:', e);
-                alert('Erro ao salvar ajuste. Verifique o console.');
+                showToast('Erro ao salvar ajuste. Tente novamente.', true);
             }
         }
 
@@ -1902,6 +1984,13 @@
             if (consolidated.classList.contains('active')) renderConsolidated();
         }
 
+        function printConsolidated() {
+            if (!document.getElementById('consolidatedView').classList.contains('active')) {
+                toggleConsolidated();
+            }
+            window.print();
+        }
+
         function initProjectSelect() {
             const select   = document.getElementById('projectSelect');
             const projects = [...new Set(eventsData.map(e => e.project))].sort();
@@ -1921,11 +2010,13 @@
                    .forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }
+            saveFilterState();
             render();
         }
 
         function filterByProject(project) {
             currentProjectFilter = project;
+            saveFilterState();
             render();
         }
 
@@ -1936,6 +2027,7 @@
                    .forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
             }
+            saveFilterState();
             render();
         }
 
@@ -1947,7 +2039,55 @@
             }
             document.querySelectorAll(`.gate-badge.gate${gate}`)
                     .forEach(el => el.classList.toggle('active'));
+            saveFilterState();
             render();
+        }
+
+        // ── PERSISTÊNCIA DE FILTROS ────────────────────────────────────────────
+        function saveFilterState() {
+            localStorage.setItem('painelGatesFilters', JSON.stringify({
+                year: currentYearFilter,
+                project: currentProjectFilter,
+                pacote: currentPacoteFilter,
+                gates: [...activeGates]
+            }));
+        }
+
+        function restoreFilterState() {
+            const saved = localStorage.getItem('painelGatesFilters');
+            if (!saved) return;
+            try {
+                const state = JSON.parse(saved);
+
+                currentYearFilter = state.year || 'all';
+                const yearBtn = document.querySelector(`.year-buttons button[onclick*="filterByYear('${currentYearFilter}'"]`);
+                if (yearBtn) {
+                    yearBtn.closest('.year-buttons').querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                    yearBtn.classList.add('active');
+                }
+
+                currentProjectFilter = state.project || '';
+                const select = document.getElementById('projectSelect');
+                if (select) select.value = currentProjectFilter;
+
+                currentPacoteFilter = state.pacote || 'all';
+                const pacoteBtn = document.querySelector(`.year-buttons button[onclick*="filterByPacote('${currentPacoteFilter}'"]`);
+                if (pacoteBtn) {
+                    pacoteBtn.closest('.year-buttons').querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                    pacoteBtn.classList.add('active');
+                }
+
+                if (Array.isArray(state.gates)) {
+                    activeGates = new Set(state.gates);
+                    [1, 2, 3, 4].forEach(gate => {
+                        document.querySelectorAll(`.gate-badge.gate${gate}`).forEach(el => {
+                            el.classList.toggle('active', activeGates.has(gate));
+                        });
+                    });
+                }
+            } catch (e) {
+                console.error('Erro ao restaurar filtros salvos:', e);
+            }
         }
 
         // ── RENDER ─────────────────────────────────────────────────────────────
@@ -2181,8 +2321,12 @@
         }
 
         // ── VISÃO CONSOLIDADA ──────────────────────────────────────────────────
+        // Respeita os mesmos filtros ativos da Timeline (ano, projeto, pacote, gates)
         function renderConsolidated() {
-            const projects = [...new Set(eventsData.map(e => e.project))].sort();
+            let projects = [...new Set(eventsData.map(e => e.project))].sort();
+            if (currentProjectFilter) {
+                projects = projects.filter(p => p === currentProjectFilter);
+            }
             let tableHTML  = '';
 
             projects.forEach(project => {
@@ -2198,12 +2342,13 @@
 
                 ['SE', 'LDAT'].forEach(pacote => {
                     if (!pacotes.has(pacote)) return;
+                    if (currentPacoteFilter !== 'all' && pacote !== currentPacoteFilter) return;
                     const gates = pacotes.get(pacote);
                     let gatesHTML = '';
 
                     for (let gateNum = 1; gateNum <= 4; gateNum++) {
                         const event = gates.find(e => e.gate === gateNum);
-                        if (!event) {
+                        if (!event || !activeGates.has(gateNum)) {
                             gatesHTML += '<td class="consolidated-gate-cell">—</td>';
                             continue;
                         }
@@ -2212,8 +2357,11 @@
                         const isCompleted   = completedFromDB[key];
                         const isAdjusted    = adjustedDates[key] !== undefined;
                         const displayDate   = getEffectiveDate(event);
+                        const displayYear   = displayDate.split('/')[2];
 
-                        if (isCompleted) {
+                        if (currentYearFilter !== 'all' && displayYear !== currentYearFilter) {
+                            gatesHTML += '<td class="consolidated-gate-cell">—</td>';
+                        } else if (isCompleted) {
                             gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-completed">✓ ${displayDate}</span></td>`;
                         } else {
                             gatesHTML += `<td class="consolidated-gate-cell"><span class="consolidated-gate-pending">${displayDate}</span></td>`;
@@ -2237,6 +2385,7 @@
         // ── INIT ───────────────────────────────────────────────────────────────
         initTheme();
         initProjectSelect();
+        restoreFilterState();
         renderComite();
         restoreAdminSession().then(() => {
             Promise.all([loadFromSupabase(), loadDateAdjustments()]).then(() => {
