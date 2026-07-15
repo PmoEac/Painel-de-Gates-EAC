@@ -214,6 +214,81 @@
             font-weight: 600;
         }
 
+        /* Próximos Gates */
+        .upcoming-section {
+            background: var(--surface);
+            border: 1px solid var(--warning);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2.5rem;
+            animation: fadeInUp 0.8s ease-out 0.1s both;
+        }
+
+        .upcoming-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--warning);
+        }
+
+        .upcoming-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .upcoming-item {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .upcoming-item .gate-badge-large {
+            margin-bottom: 0;
+        }
+
+        .upcoming-project {
+            flex: 1;
+            min-width: 180px;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .upcoming-date {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .upcoming-days {
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+
+        .upcoming-item.soon .upcoming-days {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--warning);
+        }
+
+        .upcoming-item.overdue {
+            border-color: var(--danger);
+        }
+
+        .upcoming-item.overdue .upcoming-days {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--danger);
+        }
+
         /* Filters */
         .filters-section {
             background: var(--surface);
@@ -738,6 +813,70 @@
             box-shadow: 0 0 0 3px rgba(0, 82, 122, 0.15);
         }
 
+        .date-reason-input {
+            padding: 0.4rem 0.5rem;
+            border: 1.5px solid var(--border);
+            border-radius: 6px;
+            background: var(--surface-alt);
+            color: var(--text);
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.78rem;
+            width: 100%;
+            outline: none;
+            resize: vertical;
+            min-height: 2.2rem;
+        }
+
+        .date-reason-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 82, 122, 0.15);
+        }
+
+        .history-btn {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            padding: 0.15rem 0.35rem;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+
+        .history-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: rgba(0, 82, 122, 0.08);
+        }
+
+        .history-entry {
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            background: var(--surface-alt);
+            border: 1px solid var(--border);
+            font-size: 0.82rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-entry-dates {
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 0.25rem;
+        }
+
+        .history-entry-reason {
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .history-entry-when {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            opacity: 0.8;
+        }
+
         .date-edit-actions {
             display: flex;
             gap: 0.35rem;
@@ -1163,6 +1302,17 @@
         </div>
     </div>
 
+    <!-- Histórico de Reprogramação Modal -->
+    <div class="admin-modal" id="historyModal">
+        <div class="admin-content" style="max-width: 480px; text-align: left;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--text);">🕒 Histórico de Reprogramação</div>
+                <button class="comite-close" onclick="closeHistory()" title="Fechar" style="background: var(--surface-alt); color: var(--text);">✕</button>
+            </div>
+            <div id="historyBody"></div>
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="header">
         <div class="header-container">
@@ -1202,6 +1352,12 @@
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Próximos Gates -->
+        <section class="upcoming-section" id="upcomingSection" style="display:none;">
+            <div class="upcoming-title">⏰ Próximos Gates (30 dias)</div>
+            <div class="upcoming-list" id="upcomingList"></div>
         </section>
 
         <!-- Filters -->
@@ -1396,9 +1552,13 @@
             }
         }
 
-        async function saveDateAdjustment(project, gate, pacote, newDate) {
+        async function saveDateAdjustment(project, gate, pacote, newDate, reason) {
             if (!supabaseClient) return;
             try {
+                const key = getEventKey(gate, project, pacote);
+                const originalEvent = eventsData.find(e => e.project === project && e.gate === gate && e.pacote === pacote);
+                const previousDate = adjustedDates[key] || (originalEvent ? originalEvent.date : newDate);
+
                 const { error } = await supabaseClient
                     .from('date_adjustments')
                     .upsert(
@@ -1406,7 +1566,12 @@
                         { onConflict: 'project,gate,pacote' }
                     );
                 if (error) throw error;
-                const key = getEventKey(gate, project, pacote);
+
+                const { error: logError } = await supabaseClient
+                    .from('gate_reschedule_log')
+                    .insert({ project, gate, pacote, previous_date: previousDate, new_date: newDate, reason });
+                if (logError) console.error('Erro ao gravar histórico de reprogramação:', logError);
+
                 adjustedDates[key] = newDate;
                 console.log(`✅ Data ajustada: ${project} Gate ${gate} (${pacote}) → ${newDate}`);
                 currentlyEditing = null;
@@ -1620,6 +1785,97 @@
                 </tr>`).join('');
         }
 
+        // ── HISTÓRICO DE REPROGRAMAÇÃO ────────────────────────────────────────
+        async function openHistory(project, gate, pacote) {
+            const modal = document.getElementById('historyModal');
+            const body  = document.getElementById('historyBody');
+            body.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Carregando...</p>';
+            modal.classList.add('active');
+
+            if (!supabaseClient) return;
+            try {
+                const { data, error } = await supabaseClient
+                    .from('gate_reschedule_log')
+                    .select('previous_date, new_date, reason, changed_at')
+                    .eq('project', project)
+                    .eq('gate', gate)
+                    .eq('pacote', pacote)
+                    .order('changed_at', { ascending: false });
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    body.innerHTML = '<p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum histórico registrado.</p>';
+                    return;
+                }
+
+                body.innerHTML = data.map(entry => `
+                    <div class="history-entry">
+                        <div class="history-entry-dates">${entry.previous_date} → ${entry.new_date}</div>
+                        <div class="history-entry-reason">${entry.reason}</div>
+                        <div class="history-entry-when">${new Date(entry.changed_at).toLocaleString('pt-BR')}</div>
+                    </div>`).join('');
+            } catch (e) {
+                console.error('Erro ao carregar histórico:', e);
+                body.innerHTML = '<p style="color: var(--danger); font-size: 0.85rem;">Erro ao carregar histórico.</p>';
+            }
+        }
+
+        function closeHistory() {
+            document.getElementById('historyModal').classList.remove('active');
+        }
+
+        // ── PRÓXIMOS GATES ─────────────────────────────────────────────────────
+        function parseBRDate(ddmmyyyy) {
+            const [d, m, y] = ddmmyyyy.split('/').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        function renderUpcoming() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const items = [];
+
+            eventsData.forEach(event => {
+                const key = getEventKey(event.gate, event.project, event.pacote);
+                const isCompleted = completedFromDB[key] || false;
+                if (isCompleted) return;
+
+                const effectiveDate = getEffectiveDate(event);
+                const daysUntil = Math.round((parseBRDate(effectiveDate) - today) / 86400000);
+                if (daysUntil <= 30) {
+                    items.push({ event, effectiveDate, daysUntil });
+                }
+            });
+
+            items.sort((a, b) => a.daysUntil - b.daysUntil);
+
+            const section = document.getElementById('upcomingSection');
+            const list    = document.getElementById('upcomingList');
+
+            if (items.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = items.map(({ event, effectiveDate, daysUntil }) => {
+                const overdue   = daysUntil < 0;
+                const daysLabel = overdue
+                    ? `ATRASADO (${Math.abs(daysUntil)}d)`
+                    : daysUntil === 0
+                        ? 'HOJE'
+                        : `em ${daysUntil} dia${daysUntil === 1 ? '' : 's'}`;
+                return `
+                    <div class="upcoming-item ${overdue ? 'overdue' : 'soon'}">
+                        <span class="gate-badge-large gate${event.gate}">GATE ${event.gate}</span>
+                        <span class="upcoming-project">${formatProjectName(event.project)}</span>
+                        <span class="pacote-badge">${event.pacote}</span>
+                        <span class="upcoming-date">${effectiveDate}</span>
+                        <span class="upcoming-days">${daysLabel}</span>
+                    </div>`;
+            }).join('');
+        }
+
         // ── MISC UTILS ─────────────────────────────────────────────────────────
         function openComite() {
             document.getElementById('comiteModal').classList.add('active');
@@ -1721,6 +1977,7 @@
             if (Object.keys(eventsByMonth).length === 0) {
                 timeline.innerHTML = '<div class="no-events"><div class="no-events-icon">📭</div><p>Nenhum evento encontrado</p></div>';
                 updateStats();
+                renderUpcoming();
                 return;
             }
 
@@ -1783,6 +2040,10 @@
                         input.value = toISODate(effectiveDate);
                         input.className = 'date-edit-input';
 
+                        const reasonInput = document.createElement('textarea');
+                        reasonInput.className = 'date-reason-input';
+                        reasonInput.placeholder = 'Motivo do ajuste (obrigatório)';
+
                         const actionsDiv = document.createElement('div');
                         actionsDiv.className = 'date-edit-actions';
 
@@ -1791,8 +2052,8 @@
                         saveBtn.className = 'date-edit-save';
                         saveBtn.onclick = async (e) => {
                             e.stopPropagation();
-                            if (!input.value) return;
-                            await saveDateAdjustment(event.project, event.gate, event.pacote, fromISODate(input.value));
+                            if (!input.value || !reasonInput.value.trim()) return;
+                            await saveDateAdjustment(event.project, event.gate, event.pacote, fromISODate(input.value), reasonInput.value.trim());
                         };
 
                         const cancelBtn = document.createElement('button');
@@ -1807,6 +2068,7 @@
                         actionsDiv.appendChild(saveBtn);
                         actionsDiv.appendChild(cancelBtn);
                         wrapper.appendChild(input);
+                        wrapper.appendChild(reasonInput);
                         wrapper.appendChild(actionsDiv);
                         dateEl.appendChild(wrapper);
 
@@ -1821,6 +2083,16 @@
                             adjBadge.textContent = 'ajustado';
                             adjBadge.title = `Data original: ${event.date}`;
                             dateEl.appendChild(adjBadge);
+
+                            const historyBtn = document.createElement('button');
+                            historyBtn.className = 'history-btn';
+                            historyBtn.textContent = '🕒';
+                            historyBtn.title = 'Ver histórico de reprogramação';
+                            historyBtn.onclick = (e) => {
+                                e.stopPropagation();
+                                openHistory(event.project, event.gate, event.pacote);
+                            };
+                            dateEl.appendChild(historyBtn);
                         }
 
                         if (isAdmin) {
@@ -1891,6 +2163,7 @@
             });
 
             updateStats();
+            renderUpcoming();
         }
 
         function updateStats() {
